@@ -28,7 +28,7 @@ customer_stats as (
     from {{ ref('int_stripe__daily_customer_stats') }}
 ),
 filtered_subs as (
-    select subscription_payments.subscription_id
+    select subscription_payments.subscription_id,
         subscription_payments.date,
         subscription_id,
         status,
