@@ -124,6 +124,7 @@ sub_stats as (
                 where
                     subscription_payments.date <= date_trunc('day', dt.date)
                 QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
+            ) as filtered_subs
         ),
         /*
         There are multiple different values that can be used when summing mrr. Stripe
