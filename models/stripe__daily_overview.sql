@@ -30,7 +30,7 @@ customer_stats as (
 
 sub_stats as (
     select
-        {{ dbt_utils.date_trunc("day", 'dt.date') }} as date,
+        date_trunc('day', dt.date) as date,
         (
             /*
             Churned subscriptions are counted when the current day is
