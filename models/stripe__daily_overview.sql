@@ -27,26 +27,10 @@ customer_stats as (
         *
     from {{ ref('int_stripe__daily_customer_stats') }}
 ),
-filtered_subs as (
-    select subscription_payments.subscription_id,
-        subscription_payments.date,
-        subscription_id,
-        status,
-        customer_email,
-        canceled_at
-    from
-        subscription_payments
-    where
-        subscription_payments.date <= date_trunc('day', dt.date)
-    -- order by
-    --     subscription_id,
-    --     date desc
-    QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
-),
 
 sub_stats as (
     select
-        date_trunc('day', dt.date) as date,
+        {{ dbt_utils.date_trunc("day", 'dt.date') }} as date,
         (
             /*
             Churned subscriptions are counted when the current day is
@@ -61,7 +45,19 @@ sub_stats as (
                     ) 
                     then 1 end
                 ) as "churned_subscriptions"
-            from filtered_subs
+            from (
+                subscription_payments.subscription_id,
+                    subscription_payments.date,
+                    subscription_id,
+                    status,
+                    customer_email,
+                    canceled_at
+                from
+                    subscription_payments
+                where
+                    subscription_payments.date <= date_trunc('day', dt.date)
+                QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
+            ) as filtered_subs
         ),
         (
             /*
@@ -81,7 +77,7 @@ sub_stats as (
                     then 1 end
                 ) as "new_subscriptions"
             from (
-                select distinct on (subscription_payments.subscription_id)
+                select subscription_payments.subscription_id,
                     subscription_payments.date,
                     subscription_id,
                     invoice_number,
@@ -92,9 +88,7 @@ sub_stats as (
                     subscription_payments
                 where
                     subscription_payments.date = date_trunc('day', dt.date)
-                order by
-                    subscription_id,
-                    subscription_payments.date desc
+                QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
             ) as filtered_subs
         ),
         (
@@ -119,7 +113,7 @@ sub_stats as (
                     then 1 end
                 ) as "active_subscriptions"
             from (
-                select distinct on (subscription_payments.subscription_id)
+                select subscription_payments.subscription_id,
                     subscription_payments.date,
                     subscription_id,
                     status,
@@ -129,9 +123,7 @@ sub_stats as (
                     subscription_payments
                 where
                     subscription_payments.date <= date_trunc('day', dt.date)
-                order by
-                    subscription_id,
-                    subscription_payments.date desc) as filtered_subs
+                QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
         ),
         /*
         There are multiple different values that can be used when summing mrr. Stripe
@@ -148,7 +140,7 @@ sub_stats as (
                     then filtered_subs.plan_amount / 100 end
                 ), 2), 0) as "churned_mrr"
             from (
-                select distinct on (subscription_payments.subscription_id)
+                select subscription_payments.subscription_id,
                     subscription_payments.date,
                     subscription_id,
                     plan_amount,
@@ -159,9 +151,7 @@ sub_stats as (
                     subscription_payments
                 where
                     subscription_payments.date <= date_trunc('day', dt.date)
-                order by
-                    subscription_id,
-                    subscription_payments.date desc
+                QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
             ) as filtered_subs
         ),
         (
@@ -179,7 +169,7 @@ sub_stats as (
                     then filtered_subs.plan_amount / 100 end
                 ), 2), 0) as "new_mrr"
             from (
-                select distinct on (subscription_payments.subscription_id)
+                select subscription_payments.subscription_id,
                     subscription_payments.date,
                     subscription_id,
                     invoice_number,
@@ -190,9 +180,7 @@ sub_stats as (
                     subscription_payments
                 where
                     subscription_payments.date = date_trunc('day', dt.date)
-                order by
-                    subscription_id,
-                    date desc
+                QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
             ) as filtered_subs
         ),
         (
@@ -212,7 +200,7 @@ sub_stats as (
                     then filtered_subs.plan_amount / 100 end
                 ), 2), 0) as "mrr"
             from (
-                select distinct on (subscription_payments.subscription_id)
+                select subscription_payments.subscription_id,
                     subscription_payments.date,
                     subscription_id,
                     plan_amount,
@@ -223,9 +211,7 @@ sub_stats as (
                     subscription_payments
                 where
                     subscription_payments.date <= date_trunc('day', dt.date)
-                order by
-                    subscription_id,
-                    date desc
+                QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
             ) as filtered_subs
         )
     from (
