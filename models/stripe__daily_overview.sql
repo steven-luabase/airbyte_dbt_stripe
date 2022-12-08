@@ -28,7 +28,7 @@ customer_stats as (
     from {{ ref('int_stripe__daily_customer_stats') }}
 ),
 filtered_subs as (
-    select distinct on (subscription_payments.subscription_id)
+    select subscription_payments.subscription_id
         subscription_payments.date,
         subscription_id,
         status,
@@ -38,9 +38,10 @@ filtered_subs as (
         subscription_payments
     where
         subscription_payments.date <= date_trunc('day', dt.date)
-    order by
-        subscription_id,
-        date desc
+    -- order by
+    --     subscription_id,
+    --     date desc
+    QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
 ),
 
 sub_stats as (
