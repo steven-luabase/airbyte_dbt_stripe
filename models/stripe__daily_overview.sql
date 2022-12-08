@@ -41,7 +41,7 @@ filter_subs as (
     where
         subscription_payments.date <= date_trunc('day', dt.date)
     QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
-)
+),
 
 sub_stats as (
     select
