@@ -46,7 +46,7 @@ sub_stats as (
                     then 1 end
                 ) as "churned_subscriptions"
             from (
-                subscription_payments.subscription_id,
+                select subscription_payments.subscription_id,
                     subscription_payments.date,
                     subscription_id,
                     status,
