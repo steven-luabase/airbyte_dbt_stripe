@@ -28,6 +28,21 @@ customer_stats as (
     from {{ ref('int_stripe__daily_customer_stats') }}
 ),
 
+filter_subs as (
+    select subscription_payments.subscription_id,
+        subscription_payments.date,
+        subscription_id,
+        plan_amount,
+        status,
+        customer_email,
+        canceled_at
+    from
+        subscription_payments
+    where
+        subscription_payments.date <= date_trunc('day', dt.date)
+    QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
+)
+
 sub_stats as (
     select
         {{ dbt_utils.date_trunc("day", 'dt.date') }} as date,
@@ -45,19 +60,7 @@ sub_stats as (
                     ) 
                     then 1 end
                 ) as churned_subscriptions
-            from (
-                select subscription_payments.subscription_id,
-                    subscription_payments.date,
-                    subscription_id,
-                    status,
-                    customer_email,
-                    canceled_at
-                from
-                    subscription_payments
-                where
-                    subscription_payments.date <= date_trunc('day', dt.date)
-                QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
-            ) as filtered_subs
+            from filtered_subs
         ),
         (
             /*
@@ -76,20 +79,7 @@ sub_stats as (
                     )
                     then 1 end
                 ) as new_subscriptions
-            from (
-                select subscription_payments.subscription_id,
-                    subscription_payments.date,
-                    subscription_id,
-                    invoice_number,
-                    status,
-                    customer_email,
-                    canceled_at
-                from
-                    subscription_payments
-                where
-                    subscription_payments.date = date_trunc('day', dt.date)
-                QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
-            ) as filtered_subs
+            from filtered_subs
         ),
         (
             /*
@@ -112,19 +102,7 @@ sub_stats as (
                     ) 
                     then 1 end
                 ) as active_subscriptions
-            from (
-                select subscription_payments.subscription_id,
-                    subscription_payments.date,
-                    subscription_id,
-                    status,
-                    customer_email,
-                    canceled_at
-                from
-                    subscription_payments
-                where
-                    subscription_payments.date <= date_trunc('day', dt.date)
-                QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
-            ) as filtered_subs
+            from filtered_subs
         ),
         /*
         There are multiple different values that can be used when summing mrr. Stripe
@@ -140,50 +118,24 @@ sub_stats as (
                     ) 
                     then filtered_subs.plan_amount / 100 end
                 ), 2), 0) as churned_mrr
-            from (
-                select subscription_payments.subscription_id,
-                    subscription_payments.date,
-                    subscription_id,
-                    plan_amount,
-                    status,
-                    customer_email,
-                    canceled_at
-                from
-                    subscription_payments
-                where
-                    subscription_payments.date <= date_trunc('day', dt.date)
-                QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
-            ) as filtered_subs
+            from filtered_subs
         ),
-        -- (
-        --     select
-        --         coalesce(round(sum(
-        --             case when (
-        --                 (
-        --                     filtered_subs.status = 'active'
-        --                     or filtered_subs.status = 'past due'
-        --                     or filtered_subs.status = 'canceled'
-        --                 )
-        --                 and filtered_subs.invoice_number = 1
-        --                 and filtered_subs.customer_email is not null
-        --             ) 
-        --             then filtered_subs.plan_amount / 100 end
-        --         ), 2), 0) as "new_mrr"
-        --     from (
-        --         select subscription_payments.subscription_id,
-        --             subscription_payments.date,
-        --             subscription_id,
-        --             invoice_number,
-        --             plan_amount,
-        --             status,
-        --             customer_email
-        --         from
-        --             subscription_payments
-        --         where
-        --             subscription_payments.date = date_trunc('day', dt.date)
-        --         QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
-        --     ) as filtered_subs
-        -- ),
+        (
+            select
+                coalesce(round(sum(
+                    case when (
+                        (
+                            filtered_subs.status = 'active'
+                            or filtered_subs.status = 'past due'
+                            or filtered_subs.status = 'canceled'
+                        )
+                        and filtered_subs.invoice_number = 1
+                        and filtered_subs.customer_email is not null
+                    ) 
+                    then filtered_subs.plan_amount / 100 end
+                ), 2), 0) as "new_mrr"
+            from filtered_subs
+        ),
         (
             select
                 coalesce(round(sum(
@@ -200,20 +152,7 @@ sub_stats as (
                     ) 
                     then filtered_subs.plan_amount / 100 end
                 ), 2), 0) as mrr
-            from (
-                select subscription_payments.subscription_id,
-                    subscription_payments.date,
-                    subscription_id,
-                    plan_amount,
-                    status,
-                    customer_email,
-                    canceled_at
-                from
-                    subscription_payments
-                where
-                    subscription_payments.date <= date_trunc('day', dt.date)
-                QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
-            ) as filtered_subs
+            from filtered_subs
         )
     from (
         select
@@ -221,24 +160,24 @@ sub_stats as (
         from
             daily_transactions
         ) as dt
+),
+
+daily_overview as (
+    select
+        *,
+        coalesce(round(mrr/nullif(active_subscriptions, 0.0), 2), 0.0) as mrr_per_subscription,
+        coalesce(round(mrr/nullif(active_customers, 0.0), 2), 0.0) as mrr_per_customer,
+        coalesce(active_customers - lag(active_customers, 1) over (order by date), 0) as customers_diff,
+        coalesce(active_subscriptions - lag(active_subscriptions, 1) over (order by date), 0) as subscriptions_diff,
+        coalesce(mrr - lag(mrr, 1) over (order by date), 0.0) as mrr_diff
+    from
+        daily_transactions
+        left join sub_stats
+            using(date)
+        left join customer_stats
+            using(date)
+    order by
+        date asc   
 )
 
--- daily_overview as (
---     select
---         *,
---         coalesce(round(mrr/nullif(active_subscriptions, 0.0), 2), 0.0) as mrr_per_subscription,
---         coalesce(round(mrr/nullif(active_customers, 0.0), 2), 0.0) as mrr_per_customer,
---         coalesce(active_customers - lag(active_customers, 1) over (order by date), 0) as customers_diff,
---         coalesce(active_subscriptions - lag(active_subscriptions, 1) over (order by date), 0) as subscriptions_diff,
---         coalesce(mrr - lag(mrr, 1) over (order by date), 0.0) as mrr_diff
---     from
---         daily_transactions
---         left join sub_stats
---             using(date)
---         left join customer_stats
---             using(date)
---     order by
---         date asc   
--- )
-
-select * from sub_stats
+select * from daily_overview
