@@ -267,7 +267,7 @@ daily_overview as (
         *,
         -- coalesce(round(mrr/nullif(active_subscriptions, 0.0), 2), 0.0) as mrr_per_subscription,
         -- coalesce(round(mrr/nullif(active_customers, 0.0), 2), 0.0) as mrr_per_customer,
-        coalesce(active_customers - lag(active_customers, 1) over (order by date), 0) as customers_diff,
+        coalesce(active_customers - lag(active_customers, 1) over (order by date), 0) as customers_diff
         -- coalesce(active_subscriptions - lag(active_subscriptions, 1) over (order by date), 0) as subscriptions_diff,
         -- coalesce(mrr - lag(mrr, 1) over (order by date), 0.0) as mrr_diff
     from
