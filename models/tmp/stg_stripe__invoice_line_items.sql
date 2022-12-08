@@ -1,8 +1,8 @@
 with invoice_line_items_period as (
     select
         _airbyte_invoice_line_items_hashid,
-        {{ dbt_date.from_unixtimestamp('start') }} as period_start,
-        {{ dbt_date.from_unixtimestamp('"end"') }} as period_end
+        {{ dbt_date.from_unixtimestamp(start) }} as period_start,
+        {{ dbt_date.from_unixtimestamp(end) }} as period_end
     from {{ var('invoice_line_items_period') }}
 ),
 
