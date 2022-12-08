@@ -120,7 +120,7 @@ daily_failed_charges as (
 
 date_spine as (
     select
-        dateadd(day, '-' || seq4(), current_date()) as dte
+        dateadd(day, '-' || seq4(), current_date()) as date_day
         from
         table
             (generator(rowcount => 365
