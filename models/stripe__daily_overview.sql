@@ -199,7 +199,7 @@ sub_stats as (
                         and filtered_subs.customer_email is not null
                     ) 
                     then filtered_subs.plan_amount / 100 end
-                ), 2), 0) as "total_mrr"
+                ), 2), 0) as "mrr"
             from (
                 select subscription_payments.subscription_id,
                     subscription_payments.date,
@@ -230,7 +230,7 @@ daily_overview as (
         coalesce(round(mrr/nullif(active_customers, 0.0), 2), 0.0) as mrr_per_customer,
         coalesce(active_customers - lag(active_customers, 1) over (order by date), 0) as customers_diff,
         coalesce(active_subscriptions - lag(active_subscriptions, 1) over (order by date), 0) as subscriptions_diff,
-        coalesce(total_mrr - lag(total_mrr, 1) over (order by date), 0.0) as mrr_diff
+        coalesce(mrr - lag(mrr, 1) over (order by date), 0.0) as mrr_diff
     from
         daily_transactions
         left join sub_stats
