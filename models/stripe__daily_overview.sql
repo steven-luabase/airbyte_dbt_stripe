@@ -28,44 +28,44 @@ customer_stats as (
     from {{ ref('int_stripe__daily_customer_stats') }}
 ),
 
-churned_stats as (
-     select
-        {{ dbt_utils.date_trunc("day", 'dt.date') }} as date,
-        (
-            /*
-            Churned subscriptions are counted when the current day is
-            less than the day the subscription was canceled.
-            */
-            select
-                count(
-                    case when (
-                        filtered_subs.status = 'canceled'
-                        and dt.date = date_trunc('day', filtered_subs.canceled_at)
-                        and filtered_subs.customer_email is not null
-                    ) 
-                    then 1 end
-                ) as churned_subscriptions
-            from (
-                select subscription_payments.subscription_id,
-                    subscription_payments.date,
-                    subscription_id,
-                    status,
-                    customer_email,
-                    canceled_at
-                from
-                    subscription_payments
-                where
-                    subscription_payments.date <= date_trunc('day', dt.date)
-                QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
-            ) as filtered_subs
-        )
-    from (
-        select
-            date
-        from
-            daily_transactions
-        ) as dt
-),
+-- churned_stats as (
+--      select
+--         {{ dbt_utils.date_trunc("day", 'dt.date') }} as date,
+--         (
+--             /*
+--             Churned subscriptions are counted when the current day is
+--             less than the day the subscription was canceled.
+--             */
+--             select
+--                 count(
+--                     case when (
+--                         filtered_subs.status = 'canceled'
+--                         and dt.date = date_trunc('day', filtered_subs.canceled_at)
+--                         and filtered_subs.customer_email is not null
+--                     ) 
+--                     then 1 end
+--                 ) as churned_subscriptions
+--             from (
+--                 select subscription_payments.subscription_id,
+--                     subscription_payments.date,
+--                     subscription_id,
+--                     status,
+--                     customer_email,
+--                     canceled_at
+--                 from
+--                     subscription_payments
+--                 where
+--                     subscription_payments.date <= date_trunc('day', dt.date)
+--                 QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
+--             ) as filtered_subs
+--         )
+--     from (
+--         select
+--             date
+--         from
+--             daily_transactions
+--         ) as dt
+-- ),
 
 -- sub_stats as (
 --     select
@@ -272,8 +272,8 @@ daily_overview as (
         -- coalesce(mrr - lag(mrr, 1) over (order by date), 0.0) as mrr_diff
     from
         daily_transactions
-        left join churned_stats
-            using(date)
+        -- left join churned_stats
+        --     using(date)
         left join customer_stats
             using(date)
     order by
