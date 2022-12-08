@@ -119,7 +119,12 @@ daily_failed_charges as (
 
 
 date_spine as (
-    {{ dbt_date.get_base_dates(start_date=min_date, end_date=max_date) }}
+    select
+        dateadd(day, '-' || seq4(), current_date()) as dte
+        from
+        table
+            (generator(rowcount => 365
+        ))
 ),
 
 daily_transactions as (
