@@ -155,35 +155,35 @@ sub_stats as (
                 QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
             ) as filtered_subs
         ),
-        (
-            select
-                coalesce(round(sum(
-                    case when (
-                        (
-                            filtered_subs.status = 'active'
-                            or filtered_subs.status = 'past due'
-                            or filtered_subs.status = 'canceled'
-                        )
-                        and filtered_subs.invoice_number = 1
-                        and filtered_subs.customer_email is not null
-                    ) 
-                    then filtered_subs.plan_amount / 100 end
-                ), 2), 0) as "new_mrr"
-            from (
-                select subscription_payments.subscription_id,
-                    subscription_payments.date,
-                    subscription_id,
-                    invoice_number,
-                    plan_amount,
-                    status,
-                    customer_email
-                from
-                    subscription_payments
-                where
-                    subscription_payments.date = date_trunc('day', dt.date)
-                QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
-            ) as filtered_subs
-        ),
+        -- (
+        --     select
+        --         coalesce(round(sum(
+        --             case when (
+        --                 (
+        --                     filtered_subs.status = 'active'
+        --                     or filtered_subs.status = 'past due'
+        --                     or filtered_subs.status = 'canceled'
+        --                 )
+        --                 and filtered_subs.invoice_number = 1
+        --                 and filtered_subs.customer_email is not null
+        --             ) 
+        --             then filtered_subs.plan_amount / 100 end
+        --         ), 2), 0) as "new_mrr"
+        --     from (
+        --         select subscription_payments.subscription_id,
+        --             subscription_payments.date,
+        --             subscription_id,
+        --             invoice_number,
+        --             plan_amount,
+        --             status,
+        --             customer_email
+        --         from
+        --             subscription_payments
+        --         where
+        --             subscription_payments.date = date_trunc('day', dt.date)
+        --         QUALIFY ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY date) = 1
+        --     ) as filtered_subs
+        -- ),
         (
             select
                 coalesce(round(sum(
