@@ -44,7 +44,7 @@ sub_stats as (
                         and filtered_subs.customer_email is not null
                     ) 
                     then 1 end
-                ) as "churned_subscriptions"
+                ) as churned_subscriptions
             from (
                 select subscription_payments.subscription_id,
                     subscription_payments.date,
@@ -75,7 +75,7 @@ sub_stats as (
                         and filtered_subs.customer_email is not null
                     )
                     then 1 end
-                ) as "new_subscriptions"
+                ) as new_subscriptions
             from (
                 select subscription_payments.subscription_id,
                     subscription_payments.date,
@@ -111,7 +111,7 @@ sub_stats as (
                         and filtered_subs.customer_email is not null
                     ) 
                     then 1 end
-                ) as "active_subscriptions"
+                ) as active_subscriptions
             from (
                 select subscription_payments.subscription_id,
                     subscription_payments.date,
@@ -139,7 +139,7 @@ sub_stats as (
                         and filtered_subs.customer_email is not null
                     ) 
                     then filtered_subs.plan_amount / 100 end
-                ), 2), 0) as "churned_mrr"
+                ), 2), 0) as churned_mrr
             from (
                 select subscription_payments.subscription_id,
                     subscription_payments.date,
@@ -199,7 +199,7 @@ sub_stats as (
                         and filtered_subs.customer_email is not null
                     ) 
                     then filtered_subs.plan_amount / 100 end
-                ), 2), 0) as "mrr"
+                ), 2), 0) as mrr
             from (
                 select subscription_payments.subscription_id,
                     subscription_payments.date,
